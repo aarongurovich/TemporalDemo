@@ -1,0 +1,9 @@
+[
+    {"source": "1", "target": "2", "time": 1},
+    {"source": "2", "target": "3", "time": 2},
+    {"source": "3", "target": "4", "time": 3},
+    {"source": "4", "target": "5", "time": 4},
+    {"source": "5", "target": "6", "time": 5},
+    {"source": "6", "target": "1", "time": 6}
+  ]
+  

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Temporal Network Visualization with D3.js</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    .links line {
+      stroke: #aaa;
+    }
+
+    .nodes circle {
+      stroke: #fff;
+      stroke-width: 1.5px;
+    }
+
+    .label {
+      font-family: sans-serif;
+      font-size: 12px;
+      text-anchor: middle;
+    }
+  </style>
+</head>
+<body>
+  <input type="range" id="timeSlider" min="0" max="6" step="1" value="0">
+  <svg width="800" height="600"></svg>
+  <script>
+    const svg = d3.select("svg"),
+          width = +svg.attr("width"),
+          height = +svg.attr("height");
+
+    let nodes, links;
+    let currentTime = 0;
+
+    // Load data
+    Promise.all([
+      d3.json("nodes.json"),
+      d3.json("links.json")
+    ]).then(data => {
+      nodes = data[0];
+      links = data[1];
+      updateNetwork(currentTime);
+    });
+
+    const color = d3.scaleOrdinal(d3.schemeCategory10);
+
+    const simulation = d3.forceSimulation()
+      .force("link", d3.forceLink().id(d => d.id).distance(100))
+      .force("charge", d3.forceManyBody().strength(-400))
+      .force("center", d3.forceCenter(width / 2, height / 2));
+
+    function updateNetwork(time) {
+      const activeNodes = nodes.filter(d => d.time <= time);
+      const activeLinks = links.filter(d => d.time <= time);
+
+      // Update links
+      const link = svg.selectAll(".links line")
+        .data(activeLinks, d => `${d.source}-${d.target}`);
+
+      link.enter().append("line")
+        .attr("class", "link")
+        .merge(link);
+
+      link.exit().remove();
+
+      // Update nodes
+      const node = svg.selectAll(".nodes circle")
+        .data(activeNodes, d => d.id);
+
+      const nodeEnter = node.enter().append("circle")
+        .attr("class", "node")
+        .attr("r", 8)
+        .attr("fill", d => color(d.group))
+        .call(drag(simulation));
+
+      nodeEnter.append("title")
+        .text(d => `Node ${d.id}`);
+
+      node.exit().remove();
+
+      // Update labels
+      const label = svg.selectAll(".label")
+        .data(activeNodes, d => d.id);
+
+      label.enter().append("text")
+        .attr("class", "label")
+        .text(d => d.id)
+        .merge(label);
+
+      label.exit().remove();
+
+      // Restart simulation
+      simulation.nodes(activeNodes);
+      simulation.force("link").links(activeLinks);
+      simulation.alpha(1).restart();
+
+      simulation.on("tick", () => {
+        svg.selectAll(".link")
+          .attr("x1", d => d.source.x)
+          .attr("y1", d => d.source.y)
+          .attr("x2", d => d.target.x)
+          .attr("y2", d => d.target.y);
+
+        svg.selectAll(".node")
+          .attr("cx", d => d.x)
+          .attr("cy", d => d.y);
+
+        svg.selectAll(".label")
+          .attr("x", d => d.x)
+          .attr("y", d => d.y - 12);
+      });
+    }
+
+    function drag(simulation) {
+      return d3.drag()
+        .on("start", (event, d) => {
+          if (!event.active) simulation.alphaTarget(0.3).restart();
+          d.fx = d.x;
+          d.fy = d.y;
+        })
+        .on("drag", (event, d) => {
+          d.fx = event.x;
+          d.fy = event.y;
+        })
+        .on("end", (event, d) => {
+          if (!event.active) simulation.alphaTarget(0);
+          d.fx = null;
+          d.fy = null;
+        });
+    }
+
+    // Time slider control
+    d3.select("#timeSlider").on("input", function() {
+      currentTime = +this.value;
+      updateNetwork(currentTime);
+    });
+  </script>
+</body>
+</html>
